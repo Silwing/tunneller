@@ -1,0 +1,37 @@
+#compdef tunneller
+
+SETTINGS_DIR=~/.tunneller
+
+function _tunneller {
+	local line
+
+    _arguments \
+        "-h[Show help information]" \
+        "--help[Show help information]" \
+        "-a[Add tunnel]" \
+        "--add-tunnel[Add tunnel]" \
+        "--list[List defined names]" \
+        "--open[Open tunnels]" \
+        "-o[Open tunnels]" \
+        "--define[Define or update name]" \
+        "-d[Define or update name]" \
+        "--host[Hostname for define]:hostname:()" \
+        "-f[Hostname for define]:hostname:()" \
+        "--local-port[Local port for tunnel]:local-port:()" \
+        "-l[Local port for tunnel]:local-port:()" \
+        "--remote-port[Remote port for tunnel]:remote-port:()" \
+        "-p[Remote port for tunnel]:remote-port:()" \
+        "--remote-host[Remote host for tunnel]:remote-host:()" \
+        "-g[Remote host for tunnel]:remote-host:()" \
+        "--remove-tunnel[Remove tunnel]" \
+        "-r[Remove tunnel]" \
+        "-s[Show definition]" \
+        "--show[Show definition]" \
+        "-u[Username for define]:username:_users" \
+        "--user[Username for define]:username:_users" \
+        "1: :_tunneller_names"
+}
+
+function _tunneller_names {
+	_files -W ${SETTINGS_DIR}/
+}
