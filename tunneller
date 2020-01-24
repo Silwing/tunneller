@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function usage() {
-    echo -n "Tunneller version 1.0.2
+    echo -n "Tunneller version 1.0.3
 Usage: $0 [OPTION]... [NAME]
 
 Unless --list is specified, NAME is required and specifies the tunnel to work on.
@@ -32,6 +32,7 @@ MISSING_LOCAL_PORT=69
 TUNNEL_EXISTS=70
 LOCAL_PORT_IN_USE=71
 TUNNEL_NOT_FOUND=72
+LOW_PORT_WITHOUT_ELEVATED_RIGHTS=73
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -172,6 +173,12 @@ case "${action}" in
         server=$(head -1 ${settingsFile})
         tunnels=""
         while read -r line; do
+            afterDashL=${line:2}
+            localPort=${afterDashL%%:*}
+            if [ ${localPort} -le 1024 ] && [ ! $(id -u) -eq 0 ]; then
+                echo "A local port below 1024 is defined for ${name}. Please run tunneller with elevated permissions (sudo)."
+                exit ${LOW_PORT_WITHOUT_ELEVATED_RIGHTS}
+            fi
             tunnels+=" ${line}"
         done < <(tail -n+2 "${settingsFile}")
         # Set title for use by auto-typing
