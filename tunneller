@@ -20,7 +20,7 @@ Options:
 -o,  --open                         Open tunnels to NAME.
 -g,  --remote-host [host]           Remote host to add. Defaults to localhost.
 -p,  --remote-port [port]           Remote port to add. Defaults to --local-port.
--r,  --remove-tunnel                Remote a tunnel from NAME. Requires --local-port.
+-r,  --remove-tunnel                Remove a tunnel from NAME. Requires --local-port.
 -s,  --show                         Show details defined for NAME.
 -u,  --user [username]              User used to connect to NAME. Defaults to environment variable USER.
 " >&2
