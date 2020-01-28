@@ -1,10 +1,14 @@
 #!/bin/bash
 
+SETTINGS_DIR=~/.tunneller
+
 function usage() {
     echo -n "Tunneller version 1.0.3
 Usage: $0 [OPTION]... [NAME]
 
 Unless --list is specified, NAME is required and specifies the tunnel to work on.
+
+Tunneller configuration is saved in ${SETTINGS_DIR}.
 
 Options:
 -a,  --add-tunnel                   Add a tunnel to NAME. Requires --local-port, optionally --remote-port and --remote-host.
@@ -118,7 +122,6 @@ if [[ "${action}" != "list" ]] && [ $# -ne 1 ]; then
     exit ${MISSING_REQUIRED_POS_PARAM}
 fi
 
-SETTINGS_DIR=~/.tunneller
 # We got this far. Ensure settings directory is created
 if [ ! -d  "${SETTINGS_DIR}" ]; then
     mkdir "${SETTINGS_DIR}"
