@@ -8,3 +8,4 @@ Requires enhanced getopt.
 
 Todo
 -----
+- Add possibility to add local interface as well as local port
