@@ -37,6 +37,7 @@ TUNNEL_EXISTS=70
 LOCAL_PORT_IN_USE=71
 TUNNEL_NOT_FOUND=72
 LOW_PORT_WITHOUT_ELEVATED_RIGHTS=73
+DUPLICATE_LOCAL_PORT=74
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -146,8 +147,8 @@ case "${action}" in
             echo "Tunnel already exists." >&2
             exit ${TUNNEL_EXISTS}
         elif grep -F -- "-L${localPort}" "${settingsFile}"; then
-            echo "A tunnel already exists for local port ${localPort}." >&2
-            exit ${LOCAL_PORT_IN_USE}
+            echo "A tunnel already exists for local port ${localPort} for this server." >&2
+            exit ${DUPLICATE_LOCAL_PORT}
         else
             echo "${line}" >> "${settingsFile}"
             echo "Tunnel added." >&2
@@ -179,8 +180,13 @@ case "${action}" in
             afterDashL=${line:2}
             localPort=${afterDashL%%:*}
             if [ ${localPort} -le 1024 ] && [ ! $(id -u) -eq 0 ]; then
-                echo "A local port below 1024 is defined for ${name}. Please run tunneller with elevated permissions (sudo)."
+                echo "A local port below 1024 is defined for ${name}. Please run tunneller with elevated permissions (sudo)." >&2
                 exit ${LOW_PORT_WITHOUT_ELEVATED_RIGHTS}
+            fi
+
+            if ps -ef | grep ssh | grep -E "\-L(.*?:)?${localPort}:" >/dev/null 2>&1; then
+                echo "An existing tunnel is already open with local port ${localPort} defined." >&2
+                exit ${LOCAL_PORT_IN_USE}
             fi
             tunnels+=" ${line}"
         done < <(tail -n+2 "${settingsFile}")
