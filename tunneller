@@ -1,27 +1,32 @@
 #!/bin/bash
 
 SETTINGS_DIR=~/.tunneller
+TUNNEL_DEFINITIONS="${SETTINGS_DIR}/servers"
+RUNNING_TUNNELS="${SETTINGS_DIR}/running"
+TMP_RUNNING_TUNNELS="${SETTINGS_DIR}/running~"
 
 function usage() {
     echo -n "Tunneller version 1.0.3
 Usage: $0 [OPTION]... [NAME]
 
-Unless --list is specified, NAME is required and specifies the tunnel to work on.
+Unless one of the --list options are specified, NAME is required and specifies the tunnel to work on.
 
 Tunneller configuration is saved in ${SETTINGS_DIR}.
 
 Options:
 -a,  --add-tunnel                   Add a tunnel to NAME. Requires --local-port, optionally --remote-port and --remote-host.
+     --close                        Close tunnels to NAME.
 -d,  --define                       Define a new server or update the host and username of an existing one.
 -h,  --help                         This text.
 -f,  --host [host]                  Host used to connect to NAME. Defatuls to NAME.
-     --list                         List all defined names.
+     --list-running                 List all running names.
+     --list-defined                 List all defined names.
 -l,  --local-port [port]            Local port to add or remove.
 -o,  --open                         Open tunnels to NAME.
 -g,  --remote-host [host]           Remote host to add. Defaults to localhost.
 -p,  --remote-port [port]           Remote port to add. Defaults to --local-port.
 -r,  --remove-tunnel                Remove a tunnel from NAME. Requires --local-port.
--s,  --show                         Show details defined for NAME.
+-s,  --show-tunnels                 Show details defined for NAME.
 -u,  --user [username]              User used to connect to NAME. Defaults to environment variable USER.
 " >&2
 }
@@ -38,6 +43,7 @@ LOCAL_PORT_IN_USE=71
 TUNNEL_NOT_FOUND=72
 LOW_PORT_WITHOUT_ELEVATED_RIGHTS=73
 DUPLICATE_LOCAL_PORT=74
+CLOSE_WITHOUT_ELEVATED_RIGHTS=75
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -48,7 +54,7 @@ fi
 
 # Define the named options this script supports
 OPTIONS=adf:g:hl:op:rsu:
-LONGOPTIONS=add-tunnel,define,help,host:,list,local-port:,open,remote-host:,remote-port:,remove-tunnel,show,user:
+LONGOPTIONS=add-tunnel,close,define,help,host:,list-defined,list-running,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,user:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use --options
@@ -65,7 +71,7 @@ eval set -- "$PARSED"
 # Set default values which can then be overwritten by parameters
 username=${USER}
 remoteHost="localhost"
-action=show
+action=show-tunnels
 
 # now enjoy the options in order and nicely split until we see --
 while true; do
@@ -73,14 +79,20 @@ while true; do
         -a|--add-tunnel)
             action=add
             shift;;
+        --close)
+            action=close
+            shift;;
         -d|--define)
             action=define
             shift;;
         -f|--host)
             host=$2
             shift 2;;
-        --list)
-            action=list
+        --list-defined)
+            action=list-defined
+            shift;;
+        --list-running)
+            action=list-running
             shift;;
         -l|--local-port)
             localPort=$2
@@ -97,8 +109,8 @@ while true; do
         -r|--remove-tunnel)
             action=remove
             shift;;
-        -s|--show)
-            action=show
+        -s|--show-tunnels)
+            action=show-tunnels
             shift;;
         -u|--user)
             username=$2
@@ -118,20 +130,42 @@ while true; do
     esac
 done
 
-if [[ "${action}" != "list" ]] && [ $# -ne 1 ]; then
+if [[ "${action}" != "list-defined" && "${action}" != "list-running" ]] && [ $# -ne 1 ]; then
     usage
     exit ${MISSING_REQUIRED_POS_PARAM}
 fi
 
+
 # We got this far. Ensure settings directory is created
 if [ ! -d  "${SETTINGS_DIR}" ]; then
     mkdir "${SETTINGS_DIR}"
+    mkdir "${TUNNEL_DEFINITIONS}"
+elif [ ! -d "${TUNNEL_DEFINITIONS}" ]; then
+    # Settings already found but no tunnel definitions directory found
+    # this must be a version with definitions directly in settings dir
+    # We'll move everything into tunnel definitions for compatibility
+    mkdir "${TUNNEL_DEFINITIONS}"
+    find ${SETTINGS_DIR} -maxdepth 1 -type f -exec mv -t "${TUNNEL_DEFINITIONS}" {} \;
 fi
+
+# Clean up any registered running tunnels, which may have died or been killed since last call
+if [ -f "${RUNNING_TUNNELS}" ]; then
+    touch "${TMP_RUNNING_TUNNELS}"
+    while read -r line; do
+        pid=${line%%|*}
+        if ps $pid >/dev/null 2>&1; then
+            echo "$line" >> "${TMP_RUNNING_TUNNELS}"
+        fi
+    done < "${RUNNING_TUNNELS}"
+    mv -f "${TMP_RUNNING_TUNNELS}" "${RUNNING_TUNNELS}" 
+fi
+
+
 
 case "${action}" in
     add)
         name=$1
-        settingsFile="${SETTINGS_DIR}/${name}"
+        settingsFile="${TUNNEL_DEFINITIONS}/${name}"
         if [ ! -f "${settingsFile}" ]; then
             echo "Undefined name. Define name using the --host option." >&2
             exit ${UNDEFINED_NAME}
@@ -154,9 +188,24 @@ case "${action}" in
             echo "Tunnel added." >&2
         fi
     ;;
+    close)
+        name=$1
+        pid=$(grep "$1" "${RUNNING_TUNNELS}" | cut -d"|" -f1)
+        if [ -z "${pid}" ]; then
+            echo "Tunnel for ${name} is not running." >&2
+        else
+            elevated=$(grep "$1" "${RUNNING_TUNNELS}" | cut -d"|" -f3)
+            if [ "${elevated}" == "elevated" ] && [ ! $(id -u) -eq 0 ]; then
+                echo "Tunnels for ${name} were started with elevated permissions (sudo) and must be closed with elevated permissions." >&2
+                exit ${CLOSE_WITHOUT_ELEVATED_RIGHTS}
+            fi
+            kill ${pid}
+            echo "Closed tunnels to ${name}." >&2
+        fi
+    ;;
     define)
         name=$1
-        settingsFile="${SETTINGS_DIR}/${name}"
+        settingsFile="${TUNNEL_DEFINITIONS}/${name}"
 
         if [ -f "${settingsFile}" ]; then
             echo "Server \"${name}\" already exists, updating host and username." >&2
@@ -166,25 +215,33 @@ case "${action}" in
             echo "New server \"${name}\" defined." >&2
         fi
     ;;
-    list)
+    list-defined)
         echo "Defined servers:"
-        ls -1 "${SETTINGS_DIR}"
+        ls -1 "${TUNNEL_DEFINITIONS}"
+    ;;
+    list-running)
+        echo "Running servers:"
+        awk -F "|" '{ print $2}' "${RUNNING_TUNNELS}"
     ;;
     open)
         name=$1
-        settingsFile="${SETTINGS_DIR}/${name}"
+        settingsFile="${TUNNEL_DEFINITIONS}/${name}"
 
         server=$(head -1 ${settingsFile})
         tunnels=""
+        elevated="|unelevated"
         while read -r line; do
             afterDashL=${line:2}
             localPort=${afterDashL%%:*}
-            if [ ${localPort} -le 1024 ] && [ ! $(id -u) -eq 0 ]; then
-                echo "A local port below 1024 is defined for ${name}. Please run tunneller with elevated permissions (sudo)." >&2
-                exit ${LOW_PORT_WITHOUT_ELEVATED_RIGHTS}
+            if [ ${localPort} -le 1024 ]; then
+                if [ ! $(id -u) -eq 0 ]; then
+                    echo "A local port below 1024 is defined for ${name}. Please run tunneller with elevated permissions (sudo)." >&2
+                    exit ${LOW_PORT_WITHOUT_ELEVATED_RIGHTS}
+                fi
+                elevated="|elevated"
             fi
 
-            if ps -ef | grep ssh | grep -E "\-L(.*?:)?${localPort}:" >/dev/null 2>&1; then
+            if ps -ef | grep ssh | grep -E "\-L${localPort}:" >/dev/null 2>&1; then
                 echo "An existing tunnel is already open with local port ${localPort} defined." >&2
                 exit ${LOCAL_PORT_IN_USE}
             fi
@@ -192,11 +249,13 @@ case "${action}" in
         done < <(tail -n+2 "${settingsFile}")
         # Set title for use by auto-typing
         echo -ne "\033]0;"${server#*@}"\007"
-        ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=1${tunnels} "${server}"
+        ssh -fN -o ServerAliveInterval=60 -o ServerAliveCountMax=1${tunnels} "${server}"
+        pid=$(ps -ef | grep ssh |  grep -- "${tunnels}" | awk '{print $2}')
+        echo "${pid}|${name}${elevated}" >> "${RUNNING_TUNNELS}"
     ;;
     remove)
         name=$1
-        settingsFile="${SETTINGS_DIR}/${name}"
+        settingsFile="${TUNNEL_DEFINITIONS}/${name}"
         if [ ! -f "${settingsFile}" ]; then
             echo "Undefined name. Define name using the --host option." >&2
             exit ${UNDEFINED_NAME}
@@ -214,9 +273,9 @@ case "${action}" in
             exit ${TUNNEL_NOT_FOUND}
         fi
     ;;
-    show)
+    show-tunnels)
         name=$1
-        settingsFile="${SETTINGS_DIR}/${name}"
+        settingsFile="${TUNNEL_DEFINITIONS}/${name}"
         awk 'NR==1 { split($0,splitHost,"@"); print "Host: " splitHost[2]; print "User: " splitHost[1]; printf "%-12s%-25s%-12s\n", "Local Port", "Host", "Remote Port"; next } { toSplit=substr($0,3); split(toSplit,splitted,":"); printf "%-12s%-25s%-12s\n", splitted[1], splitted[2], splitted[3]}' "${settingsFile}"
     ;;
     *)

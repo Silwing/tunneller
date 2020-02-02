@@ -1,7 +1,5 @@
 #compdef tunneller
 
-SETTINGS_DIR=~/.tunneller
-
 function _tunneller {
 	local line
 
@@ -10,9 +8,11 @@ function _tunneller {
         "--help[Show help information]" \
         "-a[Add tunnel]" \
         "--add-tunnel[Add tunnel]" \
-        "--list[List defined names]" \
+        "--list-defined[List defined names]" \
+        "--list-running[List running names]" \
         "--open[Open tunnels]" \
         "-o[Open tunnels]" \
+        "--close[Close tunnels]:name:($(cut -d"|" -f2 ~/.tunneller/running))" \
         "--define[Define or update name]" \
         "-d[Define or update name]" \
         "--host[Hostname for define]:hostname:()" \
@@ -26,12 +26,12 @@ function _tunneller {
         "--remove-tunnel[Remove tunnel]" \
         "-r[Remove tunnel]" \
         "-s[Show definition]" \
-        "--show[Show definition]" \
+        "--show-tunnels[Show definition]" \
         "-u[Username for define]:username:_users" \
         "--user[Username for define]:username:_users" \
         "1: :_tunneller_names"
 }
 
 function _tunneller_names {
-	_files -W ${SETTINGS_DIR}/
+	_files -W ~/.tunneller/servers/
 }
