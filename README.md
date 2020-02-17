@@ -6,6 +6,9 @@ Bash script for managing SSH tunnels.
 Requires enhanced getopt.
 
 
+
+
 Todo
 -----
-- Add possibility to add local interface as well as local port
+- Add local interface as well as local port
+- Close all running tunnels at once

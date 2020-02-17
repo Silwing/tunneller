@@ -4,9 +4,11 @@ SETTINGS_DIR=~/.tunneller
 TUNNEL_DEFINITIONS="${SETTINGS_DIR}/servers"
 RUNNING_TUNNELS="${SETTINGS_DIR}/running"
 TMP_RUNNING_TUNNELS="${SETTINGS_DIR}/running~"
+TMP_DL_DIR="${SETTINGS_DIR}/update"
+VERSION="v1.0.4"
 
 function usage() {
-    echo -n "Tunneller version 1.0.3
+    echo -n "Tunneller ${VERSION}
 Usage: $0 [OPTION]... [NAME]
 
 Unless one of the --list options are specified, NAME is required and specifies the tunnel to work on.
@@ -37,6 +39,7 @@ Options:
 -p,  --remote-port [port]           Remote port to add. Defaults to --local-port.
 -r,  --remove-tunnel                Remove a tunnel from NAME. Requires --local-port.
 -s,  --show-tunnels                 Show details defined for NAME.
+     --update                       Download and install latest version from GitHub.
 -u,  --user [username]              User used to connect to NAME. Defaults to environment variable USER.
 " >&2
 }
@@ -64,7 +67,7 @@ fi
 
 # Define the named options this script supports
 OPTIONS=adf:g:hl:op:rsu:
-LONGOPTIONS=add-tunnel,close,define,help,host:,list-defined,list-running,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,user:
+LONGOPTIONS=add-tunnel,close,define,help,host:,list-defined,list-running,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,update,user:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use --options
@@ -122,6 +125,9 @@ while true; do
         -s|--show-tunnels)
             action=show-tunnels
             shift;;
+        --update)
+            action=update
+            shift;;
         -u|--user)
             username=$2
             shift 2;;
@@ -140,7 +146,7 @@ while true; do
     esac
 done
 
-if [[ "${action}" != "list-defined" && "${action}" != "list-running" ]] && [ $# -ne 1 ]; then
+if [[ "${action}" != "list-defined" && "${action}" != "list-running" && "${action}" != "update" ]] && [ $# -ne 1 ]; then
     usage
     exit ${MISSING_REQUIRED_POS_PARAM}
 fi
@@ -288,6 +294,24 @@ case "${action}" in
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
         awk 'NR==1 { split($0,splitHost,"@"); print "Host: " splitHost[2]; print "User: " splitHost[1]; printf "%-12s%-25s%-12s\n", "Local Port", "Host", "Remote Port"; next } { toSplit=substr($0,3); split(toSplit,splitted,":"); printf "%-12s%-25s%-12s\n", splitted[1], splitted[2], splitted[3]}' "${settingsFile}"
     ;;
+    update)
+        latestUrl=$(curl -s https://api.github.com/repos/Silwing/tunneller/releases/latest | grep tarball_url | cut -d '"' -f 4)
+        latestVersion=${latestUrl##*/}
+        if [ "${VERSION}" != "${latestVersion}" ]; then
+            read -rp "Running ${VERSION}. Newer version ${latestVersion} available. Want to update? [y/n]" confirm
+            if [ "${confirm}" == "y" ]; then
+                mkdir "${TMP_DL_DIR}" \
+                    && curl -sL ${latestUrl} | tar -xzC "${TMP_DL_DIR}" \
+                    && ${TMP_DL_DIR}/*/install.sh \
+                    && echo "Successfully downloaded and installed version ${latestVersion}"
+                rm -rf "${TMP_DL_DIR}"
+            else
+                echo "Update aborted." >&2
+            fi
+        else
+            echo "Already running latest version ${VERSION}"
+        fi
+        ;;
     *)
         echo "Programmering error"
         exit 4
