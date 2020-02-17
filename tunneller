@@ -11,6 +11,16 @@ Usage: $0 [OPTION]... [NAME]
 
 Unless one of the --list options are specified, NAME is required and specifies the tunnel to work on.
 
+Examples:
+
+Define a new name:
+tunneller --define --user myuser --host 123.123.123.123 myserver
+
+Add a tunnel:
+tunneller --add-tunnel --local-port 1234 --remote-host 123.123.123.333 --remote-port 4321 myserver
+
+
+
 Tunneller configuration is saved in ${SETTINGS_DIR}.
 
 Options:
