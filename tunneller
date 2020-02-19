@@ -5,7 +5,7 @@ TUNNEL_DEFINITIONS="${SETTINGS_DIR}/servers"
 RUNNING_TUNNELS="${SETTINGS_DIR}/running"
 TMP_RUNNING_TUNNELS="${SETTINGS_DIR}/running~"
 TMP_DL_DIR="${SETTINGS_DIR}/update"
-VERSION="v1.0.5"
+VERSION="v1.0.6"
 
 function usage() {
     echo -n "Tunneller ${VERSION}
@@ -339,7 +339,7 @@ case "${action}" in
         else
             echo "Already running latest version ${VERSION}"
         fi
-        ;;
+    ;;
     *)
         echo "Programmering error"
         exit 4
