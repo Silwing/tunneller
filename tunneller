@@ -11,7 +11,7 @@ function usage() {
     echo -n "Tunneller ${VERSION}
 Usage: $0 [OPTION]... [NAME]
 
-Unless one of the --list options are specified, NAME is required and specifies the tunnel to work on.
+Unless one of the --list options, --close-all or --update is specified, NAME is required and specifies the tunnel to work on.
 
 Examples:
 
