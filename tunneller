@@ -28,6 +28,7 @@ Tunneller configuration is saved in ${SETTINGS_DIR}.
 Options:
 -a,  --add-tunnel                   Add a tunnel to NAME. Requires --local-port, optionally --remote-port and --remote-host.
      --close                        Close tunnels to NAME.
+     --close-all                    Close all running tunnels.
 -d,  --define                       Define a new server or update the host and username of an existing one.
 -h,  --help                         This text.
 -f,  --host [host]                  Host used to connect to NAME. Defatuls to NAME.
@@ -67,7 +68,7 @@ fi
 
 # Define the named options this script supports
 OPTIONS=adf:g:hl:op:rsu:
-LONGOPTIONS=add-tunnel,close,define,help,host:,list-defined,list-running,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,update,user:
+LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,list-defined,list-running,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,update,user:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use --options
@@ -94,6 +95,9 @@ while true; do
             shift;;
         --close)
             action=close
+            shift;;
+        --close-all)
+            action=close-all
             shift;;
         -d|--define)
             action=define
@@ -146,7 +150,7 @@ while true; do
     esac
 done
 
-if [[ "${action}" != "list-defined" && "${action}" != "list-running" && "${action}" != "update" ]] && [ $# -ne 1 ]; then
+if [[ "${action}" != "list-defined" && "${action}" != "list-running" && "${action}" != "update" && "${action}" != "close-all" ]] && [ $# -ne 1 ]; then
     usage
     exit ${MISSING_REQUIRED_POS_PARAM}
 fi
@@ -210,13 +214,33 @@ case "${action}" in
         if [ -z "${pid}" ]; then
             echo "Tunnel for ${name} is not running." >&2
         else
-            elevated=$(grep "$1" "${RUNNING_TUNNELS}" | cut -d"|" -f3)
+            elevated=$(grep "${name}" "${RUNNING_TUNNELS}" | cut -d"|" -f3)
             if [ "${elevated}" == "elevated" ] && [ ! $(id -u) -eq 0 ]; then
                 echo "Tunnels for ${name} were started with elevated permissions (sudo) and must be closed with elevated permissions." >&2
                 exit ${CLOSE_WITHOUT_ELEVATED_RIGHTS}
             fi
             kill ${pid}
             echo "Closed tunnels to ${name}." >&2
+        fi
+    ;;
+    close-all)
+        touch "${TMP_RUNNING_TUNNELS}"
+        anyElevatedWithoutPermissions=0
+        while read -r running; do
+            isElevated="${running##*|}"
+            if [ "${isElevated}" == "elevated" ] && [ ! $(id -u) -eq 0 ]; then
+                anyElevatedWithoutPermissions=1
+                echo "${running}" >> "${TMP_RUNNING_TUNNELS}"
+            else
+                pid=${running%%|*}
+                kill ${pid}
+            fi
+        done < "${RUNNING_TUNNELS}"
+        mv -f "${TMP_RUNNING_TUNNELS}" "${RUNNING_TUNNELS}"
+        if [ "${anyElevatedWithoutPermissions}" -eq 1 ]; then
+            echo "Some tunnels were not closed due to being started with elevated permissions. Rerun with elevated permission to close remaining tunnels." >&2
+        else
+            echo "Closed all running tunnels."
         fi
     ;;
     define)
