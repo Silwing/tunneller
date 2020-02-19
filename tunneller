@@ -220,6 +220,8 @@ case "${action}" in
                 exit ${CLOSE_WITHOUT_ELEVATED_RIGHTS}
             fi
             kill ${pid}
+            sed -e "/${name}/d" "${RUNNING_TUNNELS}" > "${TMP_RUNNING_TUNNELS}"
+            mv -f "${TMP_RUNNING_TUNNELS}" "${RUNNING_TUNNELS}"
             echo "Closed tunnels to ${name}." >&2
         fi
     ;;
