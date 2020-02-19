@@ -249,7 +249,8 @@ case "${action}" in
 
         if [ -f "${settingsFile}" ]; then
             echo "Server \"${name}\" already exists, updating host and username." >&2
-            sed -i -e "1s/.*/${username}@${host:-${name}}/" "${settingsFile}"
+            sed -e "1s/.*/${username}@${host:-${name}}/" "${settingsFile}" > "${settingsFile}.new"
+            mv -f "${settingsFile}.new" "${settingsFile}"
         else
             echo "${username}@${host:-${name}}" > "${settingsFile}"
             echo "New server \"${name}\" defined." >&2
@@ -306,7 +307,8 @@ case "${action}" in
         fi
         
         if grep -qF -- "-L${localPort}" "${settingsFile}"; then
-            sed -i -e "/\-L${localPort}/d" "${settingsFile}"
+            sed -e "/\-L${localPort}/d" "${settingsFile}" > "${settingsFile}.new"
+            mv -f "${settingsFile}.new" "${settingsFile}"
             echo "Tunnel removed." >&2
         else
             echo "Tunnel for local port ${localPort} not found." >&2
