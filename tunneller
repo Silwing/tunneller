@@ -45,7 +45,7 @@ Options:
 " >&2
 }
 
-
+SUCCESS=0
 UNSUPPORTED_GETOPT=64
 GETOPT_ERROR=65
 UNDEFINED_PARAM=66
@@ -58,6 +58,7 @@ TUNNEL_NOT_FOUND=72
 LOW_PORT_WITHOUT_ELEVATED_RIGHTS=73
 DUPLICATE_LOCAL_PORT=74
 CLOSE_WITHOUT_ELEVATED_RIGHTS=75
+UNDEFINED_ACTION=76
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -333,6 +334,7 @@ case "${action}" in
                     && ${TMP_DL_DIR}/*/install.sh \
                     && echo "Successfully downloaded and installed version ${latestVersion}"
                 rm -rf "${TMP_DL_DIR}"
+                exit ${SUCCESS}
             else
                 echo "Update aborted." >&2
             fi
@@ -341,7 +343,7 @@ case "${action}" in
         fi
     ;;
     *)
-        echo "Programmering error"
-        exit 4
+        echo "Undefined action" >&2
+        exit ${UNDEFINED_ACTION}
     ;;
 esac
