@@ -20,6 +20,8 @@ function _tunneller {
         "-d[Define or update name]" \
         "--host[Hostname for define]:hostname:()" \
         "-f[Hostname for define]:hostname:()" \
+        "--local-host[Local host for tunnel]:hostname:()" \
+        "-i[Local host for tunnel]:hostname:()" \
         "--local-port[Local port for tunnel]:local-port:()" \
         "-l[Local port for tunnel]:local-port:()" \
         "--remote-port[Remote port for tunnel]:remote-port:()" \
