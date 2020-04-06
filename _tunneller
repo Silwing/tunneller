@@ -30,6 +30,8 @@ function _tunneller {
         "-r[Remove tunnel]" \
         "-s[Show definition]" \
         "--show-tunnels[Show definition]" \
+        "--undefine[Undefine name]" \
+        "-x[Undefine name]" \
         "--update[Update from GitHub]" \
         "-u[Username for define]:username:_users" \
         "--user[Username for define]:username:_users" \

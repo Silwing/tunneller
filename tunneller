@@ -6,6 +6,7 @@ RUNNING_TUNNELS="${SETTINGS_DIR}/running"
 TMP_RUNNING_TUNNELS="${SETTINGS_DIR}/running~"
 TMP_DL_DIR="${SETTINGS_DIR}/update"
 VERSION="v1.0.6"
+ONE=1
 
 function usage() {
     echo -n "Tunneller ${VERSION}
@@ -40,6 +41,7 @@ Options:
 -p,  --remote-port [port]           Remote port to add. Defaults to --local-port.
 -r,  --remove-tunnel                Remove a tunnel from NAME. Requires --local-port.
 -s,  --show-tunnels                 Show details defined for NAME. This is default if no options are specified.
+-x,  --undefine                     Undefine NAME.
      --update                       Download and install latest version from GitHub.
 -u,  --user [username]              User used to connect to NAME. Defaults to environment variable USER.
 " >&2
@@ -68,8 +70,8 @@ if [[ $? -ne 4 ]]; then
 fi
 
 # Define the named options this script supports
-OPTIONS=adf:g:hl:op:rsu:
-LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,ld,list-defined,list-running,lr,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,update,user:
+OPTIONS=adf:g:hl:op:rsu:x
+LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,ld,list-defined,list-running,lr,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,undefine,update,user:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use --options
@@ -129,6 +131,9 @@ while true; do
             shift;;
         -s|--show-tunnels)
             action=show-tunnels
+            shift;;
+        -x|--undefine)
+            action=undefine
             shift;;
         --update)
             action=update
@@ -324,6 +329,20 @@ case "${action}" in
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
         validateDefined "${settingsFile}"
         awk 'NR==1 { split($0,splitHost,"@"); print "Host: " splitHost[2]; print "User: " splitHost[1]; printf "%-12s%-25s%-12s\n", "Local Port", "Host", "Remote Port"; next } { toSplit=substr($0,3); split(toSplit,splitted,":"); printf "%-12s%-25s%-12s\n", splitted[1], splitted[2], splitted[3]}' "${settingsFile}"
+    ;;
+    undefine)
+        name=$1
+        settingsFile="${TUNNEL_DEFINITIONS}/${name}"
+        validateDefined "${settingsFile}"
+        configLines=$(wc -l < "${settingsFile}")
+        numTunnels=$((configLines-ONE))
+        read -rp "Are you sure you want to remove ${name} and its ${numTunnels} tunnels? [y/n] " confirm
+        if [ "${confirm}" == "y" ]; then
+            rm -f ${settingsFile}
+            echo "${name} was succesfully undefined."
+        else
+            echo "Undefine aborted." >&2
+        fi
     ;;
     update)
         latestUrl=$(curl -s https://api.github.com/repos/Silwing/tunneller/releases/latest | grep tarball_url | cut -d '"' -f 4)
