@@ -65,6 +65,7 @@ LOW_PORT_WITHOUT_ELEVATED_RIGHTS=73
 DUPLICATE_LOCAL_PORT=74
 CLOSE_WITHOUT_ELEVATED_RIGHTS=75
 UNDEFINED_ACTION=76
+MISSING_LOOPBACK_ADDRESS=77
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -202,6 +203,35 @@ function validateDefined {
     fi
 }
 
+function validateLoopbackInterfaces {
+    loopbackAddress=$1
+    # Check if we're on MacOS
+    # since Linux and Windows automatically responds to all IPv4 loopback addresses
+    # on MacOS we need to add loopback addresses
+    if [[ "${OSTYPE}" =~ ^darwin ]]; then
+        if ! ifconfig lo0 | grep "inet " | cut -d" " -f2 | grep -qxF "${loopbackAddress}"; then
+            if [ ! $(id -u) -eq 0 ]; then
+                echo "Local host ${loopbackAddress} is not bound. Please rerun with elevated permissions (sudo) to bind all necessary loopback addresses." >&2
+                exit ${MISSING_LOOPBACK_ADDRESS}
+            fi
+
+            read -rp "Local host ${loopbackAddress} is not defined. Do you want to define all loopback addresses necessary for all defined tunnels now? [y/n] " confirmDefine
+            if [ ! "${confirmDefine}" == "y" ]; then
+                echo "Aborting loopback address definition." >&2
+                exit ${SUCCESS}
+            fi
+
+            while read -r address; do
+                ifconfig lo0 alias ${address}
+                echo "Defined loopback address ${address}"
+                # first process substitution finds all 127.*.*.* addresses defined as local hosts in tunnels
+                # second process substitution finds all defined loopback addresses
+                # comm compares the two, while suppressing common lines and lines only in the second argument (already defined loopback addresses)
+            done < <(comm -23 <(grep -hoE -- "-L127\.[^.]+\.[^.]+\.[^:]+" "${TUNNEL_DEFINITIONS}"/* | cut -c3- | sort -u) <(ifconfig lo0 | grep "inet " | cut -d" " -f2 | sort -u))
+        fi
+    fi
+}
+
 
 case "${action}" in
     add)
@@ -304,13 +334,17 @@ case "${action}" in
         server=$(head -1 ${settingsFile})
         tunnels=""
         elevated="|unelevated"
-        while read -r line; do
+        while read -r line <&3; do
             # Extract localport from line with optional localHost
             afterDashL=${line:2}
+            # if we cannot match 3 colons, the local host interface is not defined
+            # and therefore deleting the matching pattern deletes nothing
             if [ "${afterDashL}" = "${afterDashL#*:*:*:}" ]; then
                 localPort=${afterDashL%%:*}
             else
                 afterLocalHost=${afterDashL#*:}
+                localHost=${afterDashL%%:*}
+                validateLoopbackInterfaces "${localHost}"
                 localPort=${afterLocalHost%%:*}
             fi
             if [ ${localPort} -le 1024 ]; then
@@ -326,7 +360,7 @@ case "${action}" in
                 exit ${LOCAL_PORT_IN_USE}
             fi
             tunnels+=" ${line}"
-        done < <(tail -n+2 "${settingsFile}")
+        done 3< <(tail -n+2 "${settingsFile}")
         # Set title for use by auto-typing
         echo -ne "\033]0;"${server#*@}"\007"
         ssh -fN -o ServerAliveInterval=60 -o ServerAliveCountMax=1${tunnels} "${server}"
