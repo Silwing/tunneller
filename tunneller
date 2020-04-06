@@ -39,7 +39,7 @@ Options:
 -g,  --remote-host [host]           Remote host to add. Defaults to localhost.
 -p,  --remote-port [port]           Remote port to add. Defaults to --local-port.
 -r,  --remove-tunnel                Remove a tunnel from NAME. Requires --local-port.
--s,  --show-tunnels                 Show details defined for NAME.
+-s,  --show-tunnels                 Show details defined for NAME. This is default if no options are specified.
      --update                       Download and install latest version from GitHub.
 -u,  --user [username]              User used to connect to NAME. Defaults to environment variable USER.
 " >&2
@@ -181,16 +181,20 @@ if [ -f "${RUNNING_TUNNELS}" ]; then
     mv -f "${TMP_RUNNING_TUNNELS}" "${RUNNING_TUNNELS}" 
 fi
 
+function validateDefined {
+    settingsFile=$1
+    if [ ! -f "${settingsFile}" ]; then
+        echo "Undefined name. Define name using the --host option." >&2
+        exit ${UNDEFINED_NAME}
+    fi
+}
 
 
 case "${action}" in
     add)
         name=$1
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
-        if [ ! -f "${settingsFile}" ]; then
-            echo "Undefined name. Define name using the --host option." >&2
-            exit ${UNDEFINED_NAME}
-        fi
+        validateDefined "${settingsFile}"
         if [ -z "${localPort}" ]; then
             echo "Missing required --local-port option." >&2
             exit ${MISSING_LOCAL_PORT}
@@ -270,7 +274,7 @@ case "${action}" in
     open)
         name=$1
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
-
+        validateDefined "${settingsFile}"
         server=$(head -1 ${settingsFile})
         tunnels=""
         elevated="|unelevated"
@@ -300,10 +304,7 @@ case "${action}" in
     remove)
         name=$1
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
-        if [ ! -f "${settingsFile}" ]; then
-            echo "Undefined name. Define name using the --host option." >&2
-            exit ${UNDEFINED_NAME}
-        fi
+        validateDefined "${settingsFile}"
         if [ -z "${localPort}" ]; then
             echo "Missing required --local-port option." >&2
             exit ${MISSING_LOCAL_PORT}
@@ -321,13 +322,14 @@ case "${action}" in
     show-tunnels)
         name=$1
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
+        validateDefined "${settingsFile}"
         awk 'NR==1 { split($0,splitHost,"@"); print "Host: " splitHost[2]; print "User: " splitHost[1]; printf "%-12s%-25s%-12s\n", "Local Port", "Host", "Remote Port"; next } { toSplit=substr($0,3); split(toSplit,splitted,":"); printf "%-12s%-25s%-12s\n", splitted[1], splitted[2], splitted[3]}' "${settingsFile}"
     ;;
     update)
         latestUrl=$(curl -s https://api.github.com/repos/Silwing/tunneller/releases/latest | grep tarball_url | cut -d '"' -f 4)
         latestVersion=${latestUrl##*/}
         if [ "${VERSION}" != "${latestVersion}" ]; then
-            read -rp "Running ${VERSION}. Newer version ${latestVersion} available. Want to update? [y/n]" confirm
+            read -rp "Running ${VERSION}. Newer version ${latestVersion} available. Want to update? [y/n] " confirm
             if [ "${confirm}" == "y" ]; then
                 mkdir "${TMP_DL_DIR}" \
                     && curl -sL ${latestUrl} | tar -xzC "${TMP_DL_DIR}" \
