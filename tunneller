@@ -19,7 +19,10 @@ Examples:
 Define a new name:
 tunneller --define --user myuser --host 123.123.123.123 myserver
 
-Add a tunnel:
+Add a tunnel using default values (see default values in the Options section below):
+tunneller --add-tunnel --local-port 1234 myserver
+
+Add a tunnel with all options explicitly defined:
 tunneller --add-tunnel --local-port 1234 --remote-host 123.123.123.333 --remote-port 4321 myserver
 
 
