@@ -12,3 +12,4 @@ Installation:
 
 Todo
 -----
+- Add message telling when we are prompting for server password, to distinguish that from sudo password prompt
