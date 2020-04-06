@@ -9,7 +9,9 @@ function _tunneller {
         "-a[Add tunnel]" \
         "--add-tunnel[Add tunnel]" \
         "--list-defined[List defined names]" \
+        "--ld[List defined names]" \
         "--list-running[List running names]" \
+        "--lr[List running names]" \
         "--open[Open tunnels]" \
         "-o[Open tunnels]" \
         "--close[Close tunnels]:name:($(cut -d"|" -f2 ~/.tunneller/running))" \

@@ -32,8 +32,8 @@ Options:
 -d,  --define                       Define a new server or update the host and username of an existing one.
 -h,  --help                         This text.
 -f,  --host [host]                  Host used to connect to NAME. Defatuls to NAME.
-     --list-running                 List all running names.
-     --list-defined                 List all defined names.
+--lr,--list-running                 List all running names.
+--ld,--list-defined                 List all defined names.
 -l,  --local-port [port]            Local port to add or remove.
 -o,  --open                         Open tunnels to NAME.
 -g,  --remote-host [host]           Remote host to add. Defaults to localhost.
@@ -69,7 +69,7 @@ fi
 
 # Define the named options this script supports
 OPTIONS=adf:g:hl:op:rsu:
-LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,list-defined,list-running,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,update,user:
+LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,ld,list-defined,list-running,lr,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,update,user:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use --options
@@ -106,10 +106,10 @@ while true; do
         -f|--host)
             host=$2
             shift 2;;
-        --list-defined)
+        --ld|--list-defined)
             action=list-defined
             shift;;
-        --list-running)
+        --lr|--list-running)
             action=list-running
             shift;;
         -l|--local-port)
