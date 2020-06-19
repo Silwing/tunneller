@@ -364,7 +364,8 @@ case "${action}" in
         # Set title for use by auto-typing
         echo -ne "\033]0;"${server#*@}"\007"
         ssh -fN -o ServerAliveInterval=60 -o ServerAliveCountMax=1${tunnels} "${server}"
-        pid=$(ps -ef | grep ssh |  grep -- "${tunnels}" | awk '{print $2}')
+        echo $!
+        pid=$(ps -ef | grep '[s]sh -fN' |  grep -- "${tunnels}" | grep -- "${server}" | awk '{print $2}')
         echo "${pid}|${name}${elevated}" >> "${RUNNING_TUNNELS}"
     ;;
     remove)
