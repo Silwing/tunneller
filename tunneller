@@ -271,11 +271,11 @@ case "${action}" in
     ;;
     close)
         name=$1
-        pid=$(grep "$1" "${RUNNING_TUNNELS}" | cut -d"|" -f1)
+        pid=$(grep -F "|${name}|" "${RUNNING_TUNNELS}" | cut -d"|" -f1)
         if [ -z "${pid}" ]; then
             echo "Tunnel for ${name} is not running." >&2
         else
-            elevated=$(grep "${name}" "${RUNNING_TUNNELS}" | cut -d"|" -f3)
+            elevated=$(grep -F "|${name}|" "${RUNNING_TUNNELS}" | cut -d"|" -f3)
             if [ "${elevated}" == "elevated" ] && [ ! $(id -u) -eq 0 ]; then
                 echo "Tunnels for ${name} were started with elevated permissions (sudo) and must be closed with elevated permissions." >&2
                 exit ${CLOSE_WITHOUT_ELEVATED_RIGHTS}
@@ -286,7 +286,7 @@ case "${action}" in
                 echo "Tunnels for ${name} were started with elevated permissions (sudo) and must be closed with elevated permissions." >&2
                 exit ${CLOSE_WITHOUT_ELEVATED_RIGHTS}
             fi
-            sed -e "/${name}/d" "${RUNNING_TUNNELS}" > "${TMP_RUNNING_TUNNELS}"
+            sed -e "/|${name}|/d" "${RUNNING_TUNNELS}" > "${TMP_RUNNING_TUNNELS}"
             mv -f "${TMP_RUNNING_TUNNELS}" "${RUNNING_TUNNELS}"
             echo "Closed tunnels to ${name}." >&2
         fi
