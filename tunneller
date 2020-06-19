@@ -363,8 +363,8 @@ case "${action}" in
         done 3< <(tail -n+2 "${settingsFile}")
         # Set title for use by auto-typing
         echo -ne "\033]0;"${server#*@}"\007"
+        echo "Opening tunnel for ${name}. If necessary you will be prompted for your server password."
         ssh -fN -o ServerAliveInterval=60 -o ServerAliveCountMax=1${tunnels} "${server}"
-        echo $!
         pid=$(ps -ef | grep '[s]sh -fN' |  grep -- "${tunnels}" | grep -- "${server}" | awk '{print $2}')
         echo "${pid}|${name}${elevated}" >> "${RUNNING_TUNNELS}"
     ;;
