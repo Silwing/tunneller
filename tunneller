@@ -370,7 +370,9 @@ case "${action}" in
         echo -ne "\033]0;"${server#*@}"\007"
         echo "Opening tunnel for ${name}. If necessary you will be prompted for your server password."
         ssh -fN -o ServerAliveInterval=60 -o ServerAliveCountMax=1${tunnels} "${server}"
-        pid=$(ps -ef | grep '[s]sh -fN' |  grep -- "${tunnels}" | grep -- "${server}" | awk '{print $2}')
+        # if people do weird stuff like add multiple server names with the exact same tunnels and server this will act up
+        # to make sure it doesn't act up completely we grab just the last pid we find, hopefully that is the latest started tunnel
+        pid=$(ps -ef | grep '[s]sh -fN' |  grep -- "${tunnels}" | grep -- "${server}" | tail -1 | awk '{print $2}')
         echo "${pid}|${name}${elevated}" >> "${RUNNING_TUNNELS}"
     ;;
     remove)

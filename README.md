@@ -12,6 +12,5 @@ Installation:
 
 Todo
 -----
-- Add message telling when we are prompting for server password, to distinguish that from sudo password prompt
 - Debug tunnels with names that is a prefix of another tunnel
 - Add hostname for tunnel, which is automatically set in /etc/hosts when tunnel i opened
