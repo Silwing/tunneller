@@ -258,6 +258,33 @@ function setHostname {
     echo "Added hostname ${localHostname} for ${localHost}" >&2
 }
 
+function validateDuplicateTunnel {
+    line=$1
+    # needed to be backwards compatible with configuration without local interface specified
+    if [ "${localHost}" = "127.0.0.1" ]; then
+        matchLine="-L(${localHost}:)?${localPort}:${remoteHost}:${remotePort:-${localPort}}${localHostname:+#$localHostname}"
+    else
+        matchLine="${line}"
+    fi
+    if grep -qxE -- "${matchLine}" "${settingsFile}"; then
+        echo "Tunnel already exists." >&2
+        exit ${TUNNEL_EXISTS}
+    fi
+}
+
+function validateDuplicatePort {
+    if [ "${localHost}" = "127.0.0.1" ]; then
+        matchPort="-L(${localHost}:)?${localPort}:"
+    else
+        matchPort="-L${localHost}:${localPort}:"
+    fi
+
+    if grep -qE -- "${matchPort}" "${settingsFile}"; then
+        echo "A different tunnel already exists for local host ${localHost} and local port ${localPort} for this server." >&2
+        exit ${DUPLICATE_LOCAL_PORT}
+    fi
+}
+
 
 case "${action}" in
     add)
@@ -268,32 +295,14 @@ case "${action}" in
             echo "Missing required --local-port option." >&2
             exit ${MISSING_LOCAL_PORT}
         fi
-        
+
         line="-L${localHost}:${localPort}:${remoteHost}:${remotePort:-${localPort}}${localHostname:+#$localHostname}"
+        validateDuplicateTunnel "${line}"
 
-        # needed to be backwards compatible with configuration without local interface specified
-        if [ "${localHost}" = "127.0.0.1" ]; then
-            matchLine="-L(${localHost}:)?${localPort}:${remoteHost}:${remotePort:-${localPort}}${localHostname:+#$localHostname}"
-        else
-            matchLine="${line}"
-        fi
+        validateDuplicatePort
 
-        if [ "${localHost}" = "127.0.0.1" ]; then
-            matchPort="-L(${localHost}:)?${localPort}:"
-        else
-            matchPort="-L${localHost}:${localPort}:"
-        fi
-
-        if grep -qxE -- "${matchLine}" "${settingsFile}"; then
-            echo "Tunnel already exists." >&2
-            exit ${TUNNEL_EXISTS}
-        elif grep -qE -- "${matchPort}" "${settingsFile}"; then
-            echo "A different tunnel already exists for local host ${localHost} and local port ${localPort} for this server." >&2
-            exit ${DUPLICATE_LOCAL_PORT}
-        else
-            echo "${line}" >> "${settingsFile}"
-            echo "Tunnel added." >&2
-        fi
+        echo "${line}" >> "${settingsFile}"
+        echo "Tunnel added." >&2
     ;;
     close)
         name=$1
