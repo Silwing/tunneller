@@ -69,6 +69,8 @@ CLOSE_WITHOUT_ELEVATED_RIGHTS=75
 UNDEFINED_ACTION=76
 MISSING_LOOPBACK_ADDRESS=77
 SET_HOSTNAME_WITHOUT_ELEVATED_RIGHTS=78
+HOSTNAME_ALREADY_EXISTS=79
+DUPLICATE_LOCAL_HOSTNAME=80
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -258,6 +260,22 @@ function setHostname {
     echo "Added hostname ${localHostname} for ${localHost}" >&2
 }
 
+function validateHostname {
+    # only validate non-empty hostnames
+    if [ "${#localHostname}" -gt 0 ]; then
+        if sed '/### START TUNNELLER ###/,/### END TUNNELLER ###/d' "${HOSTS_FILE_PATH}" | grep -qE "\s${localHostname}(\s|\$)"; then
+            echo "Found ${localHostname} outside of tunneller-controlled area of hosts file." >&2
+            echo "Please specify a hostname not already defined in the hosts file or remove the definition to let tunneller take control of handling the hostname." >&2
+            exit ${HOSTNAME_ALREADY_EXISTS}
+        fi
+
+        if grep -q "#${localHostname}\$" "${settingsFile}"; then
+            echo "A different tunnel already exists mapping local hostname ${localHostname} for this server." >&2
+            exit ${DUPLICATE_LOCAL_HOSTNAME}
+        fi
+    fi
+}
+
 function validateDuplicateTunnel {
     line=$1
     # needed to be backwards compatible with configuration without local interface specified
@@ -299,6 +317,7 @@ case "${action}" in
         line="-L${localHost}:${localPort}:${remoteHost}:${remotePort:-${localPort}}${localHostname:+#$localHostname}"
         validateDuplicateTunnel "${line}"
 
+        validateHostname
         validateDuplicatePort
 
         echo "${line}" >> "${settingsFile}"
