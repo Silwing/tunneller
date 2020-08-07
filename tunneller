@@ -204,7 +204,6 @@ if [ -f "${RUNNING_TUNNELS}" ]; then
 fi
 
 function validateDefined {
-    settingsFile=$1
     if [ ! -f "${settingsFile}" ]; then
         echo "Undefined name. Define name using the --host option." >&2
         exit ${UNDEFINED_NAME}
@@ -308,7 +307,7 @@ case "${action}" in
     add)
         name=$1
         settingsFile="${TUNNEL_DEFINITIONS}/${name}"
-        validateDefined "${settingsFile}"
+        validateDefined
         if [ -z "${localPort}" ]; then
             echo "Missing required --local-port option." >&2
             exit ${MISSING_LOCAL_PORT}
