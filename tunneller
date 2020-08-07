@@ -241,7 +241,7 @@ function validateLoopbackInterfaces {
 function setHostname {
     localHostname=$1
     localHost=$2
-    if sed -n '/### START TUNNELLER ###/,/### END TUNNELLER ###/p' "${HOSTS_FILE_PATH}" | grep "^${localHost}" | grep -qE "\s${localHostname}\s|\$"; then
+    if sed -n '/### START TUNNELLER ###/,/### END TUNNELLER ###/p' "${HOSTS_FILE_PATH}" | grep "^${localHost}" | grep -qE "\s${localHostname}(\s|\$)"; then
         # hostname already defined, do nothing further
         return
     fi
