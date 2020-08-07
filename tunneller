@@ -13,7 +13,7 @@ function usage() {
     echo -n "Tunneller ${VERSION}
 Usage: $0 [OPTION]... [NAME]
 
-Unless one of the --list options, --close-all or --update is specified, NAME is required and specifies the tunnel to work on.
+Unless one of the --list options, --close-all or --update is specified, NAME is required and specifies the tunnel definition to work on.
 
 Examples:
 
@@ -24,7 +24,7 @@ Add a tunnel using default values (see default values in the Options section bel
 tunneller --add-tunnel --local-port 1234 myserver
 
 Add a tunnel with all options explicitly defined:
-tunneller --add-tunnel --local-host 127.0.0.2 --local-port 1234 --remote-host 123.123.123.333 --remote-port 4321 myserver
+tunneller --add-tunnel --local-host 127.0.0.2 --local-port 1234 --remote-host 123.123.123.333 --remote-port 4321 --local-hostname myserver.local myserver
 
 
 
