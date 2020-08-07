@@ -18,9 +18,11 @@ function _tunneller {
         "--close-all[Close all running tunnels]" \
         "--define[Define or update name]" \
         "-d[Define or update name]" \
-        "--host[Hostname for define]:hostname:()" \
-        "-f[Hostname for define]:hostname:()" \
+        "--host[Hostname of server to connect to for define]:hostname:()" \
+        "-f[Hostname of server to connect to for define]:hostname:()" \
         "--local-host[Local host for tunnel]:hostname:()" \
+        "-n[Local hostname to add in hosts file]:()" \
+        "--local-hostname[Local hostname to add in hosts file]:()" \
         "-i[Local host for tunnel]:hostname:()" \
         "--local-port[Local port for tunnel]:local-port:()" \
         "-l[Local port for tunnel]:local-port:()" \

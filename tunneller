@@ -1,5 +1,6 @@
 #!/bin/bash
 
+HOSTS_FILE_PATH=/etc/hosts
 SETTINGS_DIR=~/.tunneller
 TUNNEL_DEFINITIONS="${SETTINGS_DIR}/servers"
 RUNNING_TUNNELS="${SETTINGS_DIR}/running"
@@ -39,6 +40,7 @@ Options:
 --lr,--list-running                 List all running names.
 --ld,--list-defined                 List all defined names.
 -i,  --local-host                   Local host to add. Defaults to 127.0.0.1
+-n,  --local-hostname               Add a hostname to a tunnel. This will be added dynamically to /etc/hosts when the tunnel is opened.
 -l,  --local-port [port]            Local port to add or remove.
 -o,  --open                         Open tunnels to NAME.
 -g,  --remote-host [host]           Remote host to add. Defaults to localhost.
@@ -66,6 +68,7 @@ DUPLICATE_LOCAL_PORT=74
 CLOSE_WITHOUT_ELEVATED_RIGHTS=75
 UNDEFINED_ACTION=76
 MISSING_LOOPBACK_ADDRESS=77
+SET_HOSTNAME_WITHOUT_ELEVATED_RIGHTS=78
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -75,8 +78,8 @@ if [[ $? -ne 4 ]]; then
 fi
 
 # Define the named options this script supports
-OPTIONS=adf:g:hi:l:op:rsu:x
-LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,ld,list-defined,list-running,lr,local-host,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,undefine,update,user:
+OPTIONS=adf:g:hi:l:n:op:rsu:x
+LONGOPTIONS=add-tunnel,close,close-all,define,help,host:,ld,list-defined,list-running,lr,local-host:,local-hostname:,local-port:,open,remote-host:,remote-port:,remove-tunnel,show-tunnels,undefine,update,user:
 
 # -temporarily store output to be able to check for errors
 # -e.g. use --options
@@ -122,6 +125,9 @@ while true; do
             shift;;
         -i|--local-host)
             localHost=$2
+            shift 2;;
+        -n|--local-hostname)
+            localHostname=$2
             shift 2;;
         -l|--local-port)
             localPort=$2
@@ -232,6 +238,26 @@ function validateLoopbackInterfaces {
     fi
 }
 
+function setHostname {
+    localHostname=$1
+    localHost=$2
+    if sed -n '/### START TUNNELLER ###/,/### END TUNNELLER ###/p' "${HOSTS_FILE_PATH}" | grep "^${localHost}" | grep -qE "\s${localHostname}\s|\$"; then
+        # hostname already defined, do nothing further
+        return
+    fi
+
+    if [ ! $(id -u) -eq 0 ]; then
+        echo "Trying to set hostname ${localHostname} mapping to ${localHost}. Please rerun with elevated permissions (sudo)." >&2
+        exit ${SET_HOSTNAME_WITHOUT_ELEVATED_RIGHTS}
+    fi
+
+    # Remove existing different mapping of name if it exists
+    sed -i "/### START TUNNELLER ###/,/### END TUNNELLER ###/ { /${localHostname}/d }" "${HOSTS_FILE_PATH}"
+    # Add new mapping of name
+    sed -i "/### END TUNNELLER ###/i ${localHost} ${localHostname}" "${HOSTS_FILE_PATH}"
+    echo "Added hostname ${localHostname} for ${localHost}" >&2
+}
+
 
 case "${action}" in
     add)
@@ -243,11 +269,11 @@ case "${action}" in
             exit ${MISSING_LOCAL_PORT}
         fi
         
-        line="-L${localHost}:${localPort}:${remoteHost}:${remotePort:-${localPort}}"
+        line="-L${localHost}:${localPort}:${remoteHost}:${remotePort:-${localPort}}${localHostname:+#$localHostname}"
 
         # needed to be backwards compatible with configuration without local interface specified
         if [ "${localHost}" = "127.0.0.1" ]; then
-            matchLine="-L(${localHost}:)?${localPort}:${remoteHost}:${remotePort:-${localPort}}"
+            matchLine="-L(${localHost}:)?${localPort}:${remoteHost}:${remotePort:-${localPort}}${localHostname:+#$localHostname}"
         else
             matchLine="${line}"
         fi
@@ -262,7 +288,7 @@ case "${action}" in
             echo "Tunnel already exists." >&2
             exit ${TUNNEL_EXISTS}
         elif grep -qE -- "${matchPort}" "${settingsFile}"; then
-            echo "A tunnel already exists for local host ${localHost} and local port ${localPort} for this server." >&2
+            echo "A different tunnel already exists for local host ${localHost} and local port ${localPort} for this server." >&2
             exit ${DUPLICATE_LOCAL_PORT}
         else
             echo "${line}" >> "${settingsFile}"
@@ -346,6 +372,7 @@ case "${action}" in
             # and therefore deleting the matching pattern deletes nothing
             if [ "${afterDashL}" = "${afterDashL#*:*:*:}" ]; then
                 localPort=${afterDashL%%:*}
+                localHost="127.0.0.1"
             else
                 afterLocalHost=${afterDashL#*:}
                 localHost=${afterDashL%%:*}
@@ -364,7 +391,13 @@ case "${action}" in
                 echo "An existing tunnel is already open with local port ${localPort} defined." >&2
                 exit ${LOCAL_PORT_IN_USE}
             fi
-            tunnels+=" ${line}"
+            tunnelDef=${line%%#*}
+            tunnels+=" ${tunnelDef}"
+            localHostname=${line##*#}
+            if [ ! "${localHostname}" = "${line}" ]; then
+                # the substitution must remove something otherwise there is no hostname present
+                setHostname ${localHostname} ${localHost}
+            fi
         done 3< <(tail -n+2 "${settingsFile}")
         # Set title for use by auto-typing
         echo -ne "\033]0;"${server#*@}"\007"
@@ -407,7 +440,7 @@ case "${action}" in
         # First line contains host and username separated by @
         # Following lines contain tunnel definitions of this format: -L[localHost?]:[localPort]:[remoteHost]:[remotePort]
         # For backwards compatibility localHost is optional
-        awk 'NR==1 { split($0,splitHost,"@"); print "Host: " splitHost[2]; print "User: " splitHost[1]; printf "%-25s%-12s%-25s%-12s\n", "Local Host", "Local Port", "Host", "Remote Port"; next } { toSplit=substr($0,3); len=split(toSplit,splitted,":"); if(len > 3) { localHost=splitted[1]; localPort=splitted[2]; remoteHost=splitted[3]; remotePort=splitted[4]; } else { localHost=""; localPort=splitted[1]; remoteHost=splitted[2]; remotePort=splitted[3]; } printf "%-25s%-12s%-25s%-12s\n", localHost, localPort, remoteHost, remotePort}' "${settingsFile}"
+        awk 'NR==1 { split($0,splitHost,"@"); print "Host: " splitHost[2]; print "User: " splitHost[1]; printf "%-25s%-12s%-25s%-12s%-25s\n", "Local Host", "Local Port", "Remote Host", "Remote Port", "Local Hostname"; next } { toSplit=substr($0,3); match($0, /-L([^#]*)#?(.*)/, parts); localHostname=parts[2]; len=split(parts[1],splitted,":"); if(len > 3) { localHost=splitted[1]; localPort=splitted[2]; remoteHost=splitted[3]; remotePort=splitted[4]; } else { localHost=""; localPort=splitted[1]; remoteHost=splitted[2]; remotePort=splitted[3]; } printf "%-25s%-12s%-25s%-12s%-25s\n", localHost, localPort, remoteHost, remotePort, localHostname}' "${settingsFile}"
     ;;
     undefine)
         name=$1
