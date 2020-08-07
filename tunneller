@@ -71,6 +71,7 @@ MISSING_LOOPBACK_ADDRESS=77
 SET_HOSTNAME_WITHOUT_ELEVATED_RIGHTS=78
 HOSTNAME_ALREADY_EXISTS=79
 DUPLICATE_LOCAL_HOSTNAME=80
+RUNNING_TUNNEL_WITH_HOSTNAME=81
 
 # Check that getopt version is compatible
 getopt --test >/dev/null 2>&1
@@ -259,6 +260,19 @@ function setHostname {
     echo "Added hostname ${localHostname} for ${localHost}" >&2
 }
 
+function validateAlreadyRunningHostname {
+    localHostname=$1
+    while read -r line; do
+        withoutPid=${line#*|}
+        name=${withoutPid%%|*}
+        runningSettingsFile="${TUNNEL_DEFINITIONS}/${name}"
+        if grep -q "#${localHostname}\$" "${runningSettingsFile}"; then
+            echo "${name} with a mapping for ${localHostname} is already open. Cannot open multiple tunnels with the same hostname mapping." >&2
+            exit ${RUNNING_TUNNEL_WITH_HOSTNAME}
+        fi
+    done < "${RUNNING_TUNNELS}"
+}
+
 function validateHostname {
     # only validate non-empty hostnames
     if [ "${#localHostname}" -gt 0 ]; then
@@ -422,6 +436,7 @@ case "${action}" in
             tunnels+=" ${tunnelDef}"
             localHostname=${line##*#}
             if [ ! "${localHostname}" = "${line}" ]; then
+                validateAlreadyRunningHostname ${localHostname}
                 # the substitution must remove something otherwise there is no hostname present
                 setHostname ${localHostname} ${localHost}
             fi
