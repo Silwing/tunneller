@@ -212,7 +212,7 @@ function validateDefined {
 }
 
 function validateLoopbackInterfaces {
-    loopbackAddress=$1
+    local loopbackAddress=$1
     # Check if we're on MacOS
     # since Linux and Windows automatically responds to all IPv4 loopback addresses
     # on MacOS we need to add loopback addresses
@@ -241,8 +241,8 @@ function validateLoopbackInterfaces {
 }
 
 function setHostname {
-    localHostname=$1
-    localHost=$2
+    local localHostname=$1
+    local localHost=$2
     if sed -n '/### START TUNNELLER ###/,/### END TUNNELLER ###/p' "${HOSTS_FILE_PATH}" | grep "^${localHost}" | grep -qE "\s${localHostname}(\s|\$)"; then
         # hostname already defined, do nothing further
         return
@@ -261,6 +261,7 @@ function setHostname {
 }
 
 function validateAlreadyRunningHostname {
+    local name
     localHostname=$1
     while read -r line; do
         withoutPid=${line#*|}
