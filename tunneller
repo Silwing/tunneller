@@ -415,11 +415,13 @@ case "${action}" in
             if [ "${afterDashL}" = "${afterDashL#*:*:*:}" ]; then
                 localPort=${afterDashL%%:*}
                 localHost="127.0.0.1"
+                grepPattern="${localPort}"
             else
                 afterLocalHost=${afterDashL#*:}
                 localHost=${afterDashL%%:*}
                 validateLoopbackInterfaces "${localHost}"
                 localPort=${afterLocalHost%%:*}
+                grepPattern="${localHost}:${localPort}"
             fi
             if [ ${localPort} -le 1024 ]; then
                 if [ ! $(id -u) -eq 0 ]; then
@@ -429,8 +431,8 @@ case "${action}" in
                 elevated="|elevated"
             fi
 
-            if ps -ef | grep ssh | grep -E "\-L${localPort}:" >/dev/null 2>&1; then
-                echo "An existing tunnel is already open with local port ${localPort} defined." >&2
+            if ps -ef | grep ssh | grep -E "\-L${grepPattern}:" >/dev/null 2>&1; then
+                echo "An existing tunnel is already open with local host and port ${grepPattern} defined." >&2
                 exit ${LOCAL_PORT_IN_USE}
             fi
             tunnelDef=${line%%#*}
