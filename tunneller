@@ -254,6 +254,11 @@ function setHostname {
         exit ${SET_HOSTNAME_WITHOUT_ELEVATED_RIGHTS}
     fi
 
+    # Create tunneller section if not already found
+    if ! grep -q "### START TUNNELLER ###" "${HOSTS_FILE_PATH}"; then
+        echo $'### START TUNNELLER ###\n### END TUNNELLER ###' >> "${HOSTS_FILE_PATH}"
+    fi
+
     # Remove existing different mapping of name if it exists
     sed -i "/### START TUNNELLER ###/,/### END TUNNELLER ###/ { /${localHostname}/d }" "${HOSTS_FILE_PATH}"
     # Add new mapping of name
