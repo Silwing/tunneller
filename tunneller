@@ -184,6 +184,7 @@ fi
 if [ ! -d  "${SETTINGS_DIR}" ]; then
     mkdir "${SETTINGS_DIR}"
     mkdir "${TUNNEL_DEFINITIONS}"
+    touch "${RUNNING_TUNNELS}"
 elif [ ! -d "${TUNNEL_DEFINITIONS}" ]; then
     # Settings already found but no tunnel definitions directory found
     # this must be a version with definitions directly in settings dir
